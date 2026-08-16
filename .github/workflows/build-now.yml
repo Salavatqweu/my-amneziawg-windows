@@ -5,12 +5,22 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
     steps:
       - name: checkout
         uses: actions/checkout@v4
+
+      - name: get version
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(grep 'Number = "' version/version.go | sed 's/.*Number = "\([^"]*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: run build
         shell: cmd
@@ -23,6 +33,14 @@ jobs:
       - name: upload installer artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: amneziawg-windows-latest
+          name: amneziawg-windows-${{ steps.version.outputs.version }}
           path: installer/dist/**
           retention-days: 30
+
+      - name: publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: AmneziaWG Windows v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: installer/dist/**
